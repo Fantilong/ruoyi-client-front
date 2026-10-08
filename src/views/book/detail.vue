@@ -87,6 +87,7 @@
 <script>
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getBook, createBorrowRequest } from '@/api/book'
+import { resolveImageUrl } from '@/utils/url'
 
 export default {
   name: 'BookDetail',
@@ -128,11 +129,7 @@ export default {
       }
     },
     /** 拼接图片完整访问地址 */
-    resolveImageUrl(url) {
-      if (!url) return ''
-      if (url.startsWith('http')) return url
-      return import.meta.env.VITE_APP_BASE_API + url
-    },
+    resolveImageUrl,
     /** 返回上一页（列表页） */
     goBack() {
       this.$router.push('/book')

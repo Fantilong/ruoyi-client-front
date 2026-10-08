@@ -1,328 +1,184 @@
 <template>
-  <!-- 图书浏览页：左侧类目树 + 右侧图书卡片网格 -->
-  <div class="app-container book-page">
-    <el-row :gutter="20">
-      <!-- 左侧类目面板 -->
-      <el-col :span="5" class="category-col">
-        <div class="category-panel app-card">
-          <div class="panel-title">
-            <el-icon><Files /></el-icon>
-            <span>图书类目</span>
-          </div>
-          <el-tree
-            ref="categoryTreeRef"
-            :data="categoryTreeData"
-              :props="{ label: 'title', children: 'children' }"
-            node-key="id"
-            :default-expand-all="true"
-            :expand-on-click-node="false"
-            :highlight-current="true"
-            :current-node-key="0"
-            @node-click="handleNodeClick"
-          >
-            <template #default="{ node, data }">
-              <span class="tree-label">
-                <span>{{ data.id === 0 ? '全部图书' : node.label }}</span>
-              </span>
-            </template>
-          </el-tree>
-        </div>
-      </el-col>
+  <!-- 终端首页：顶部搜索 + 左侧类目树 + 右侧图书列表（无限滚动） -->
+  <div class="home-page">
+    <!-- 顶部搜索区域 -->
+    <book-search-area
+      :current-category-name="currentCategoryName"
+      @search="handleSearch"
+    />
 
-      <!-- 右侧图书区域 -->
-      <el-col :span="19">
-        <!-- 搜索栏 -->
-        <div class="search-bar app-card">
-          <el-input
-            v-model="keyword"
-            class="search-input"
-            size="large"
-            placeholder="请输入书籍名称搜索"
-            clearable
-            @keyup.enter="handleSearch"
-            @clear="handleSearch"
-          >
-            <template #prefix>
-              <el-icon><Search /></el-icon>
-            </template>
-          </el-input>
-          <el-button type="primary" size="large" @click="handleSearch">
-            <el-icon style="margin-right: 4px"><Search /></el-icon>搜索
-          </el-button>
-        </div>
+    <!-- 主体区域 -->
+    <div class="home-body app-container">
+      <!-- 左侧类目树 -->
+      <aside class="home-aside">
+        <book-category-tree
+          :tree-data="categoryTreeData"
+          :current-id="currentCategoryId"
+          @select="handleCategorySelect"
+        />
+      </aside>
 
-        <!-- 图书卡片网格 -->
-        <div v-loading="store.loading" class="book-grid">
-          <div
-            v-for="book in store.bookList"
-            :key="book.id"
-            class="book-card app-card"
-            @click="goDetail(book.id)"
-          >
-            <!-- 封面 -->
-            <div class="book-cover">
-              <el-image
-                v-if="book.cover"
-                :src="resolveImageUrl(book.cover)"
-                fit="contain"
-                class="cover-image"
-              >
-                <template #error>
-                  <div class="cover-placeholder">
-                    <el-icon><Picture /></el-icon>
-                    <span>暂无封面</span>
-                  </div>
-                </template>
-              </el-image>
-              <div v-else class="cover-placeholder">
-                <el-icon><Picture /></el-icon>
-                <span>暂无封面</span>
-              </div>
-              <!-- 无库存角标 -->
-              <div v-if="book.stockQuantity <= 0" class="stock-badge is-empty">暂无库存</div>
-              <div v-else class="stock-badge">在库 {{ book.stockQuantity }}</div>
-            </div>
-            <!-- 书籍信息 -->
-            <div class="book-info">
-              <div class="book-name">{{ book.name }}</div>
-              <div class="book-meta">
-                <span class="meta-item">
-                  <el-icon><User /></el-icon>{{ book.author }}
-                </span>
-                <span class="meta-item">
-                  <el-icon><CollectionTag /></el-icon>{{ book.shelfCode }}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <!-- 空状态 -->
-          <el-empty v-if="!store.loading && store.bookList.length === 0" description="未找到相关图书" class="empty-tip" />
-        </div>
-
-        <!-- 分页 -->
-        <div class="pagination-wrap" v-if="store.total > 0">
-          <el-pagination
-            background
-            layout="prev, pager, next, total"
-            :total="store.total"
-            :default-page-size="store.queryParams.pageSize"
-            :current-page="store.queryParams.pageNum"
-            @current-change="handlePageChange"
-          />
-        </div>
-      </el-col>
-    </el-row>
+      <!-- 右侧图书列表 -->
+      <section class="home-content">
+        <book-list-panel
+          :book-list="bookList"
+          :first-loading="firstLoading"
+          :loading-more="loadingMore"
+          :no-more="noMore"
+          @load-more="loadMore"
+          @click-book="goDetail"
+        />
+      </section>
+    </div>
   </div>
 </template>
 
 <script>
-import { useBookStore } from '@/stores/book'
+import { listBook, listBookCategory } from '@/api/book'
+import { handleTree } from '@/utils/tree'
+import BookSearchArea from '@/components/ssk/BookSearchArea.vue'
+import BookCategoryTree from '@/components/ssk/BookCategoryTree.vue'
+import BookListPanel from '@/components/ssk/BookListPanel.vue'
+
+/** 每页展示9本书（每行3本，共3行） */
+const PAGE_SIZE = 9
 
 export default {
-  name: 'BookList',
+  name: 'BookHome',
+  components: {
+    BookSearchArea,
+    BookCategoryTree,
+    BookListPanel
+  },
   data() {
     return {
-      // 图书Store实例
-      store: useBookStore(),
+      // 类目树数据（不含“全部”根节点）
+      categoryTree: [],
+      // 当前选中的类目ID，0表示全部
+      currentCategoryId: 0,
+      // 当前选中的类目名称（用于搜索区域展示）
+      currentCategoryName: '',
       // 搜索关键字
-      keyword: ''
+      keyword: '',
+      // 图书列表
+      bookList: [],
+      // 数据总条数
+      total: 0,
+      // 当前页码
+      pageNum: 1,
+      // 首页加载中（展示骨架屏）
+      firstLoading: false,
+      // 加载更多中
+      loadingMore: false
     }
   },
   computed: {
-    /** 类目树数据，顶部增加“全部图书”根节点 */
+    /** 类目树数据，顶部插入“全部”根节点 */
     categoryTreeData() {
-      return [{ id: 0, title: '全部图书', children: this.store.categoryTree }]
+      return [{ id: 0, title: '全部', children: this.categoryTree }]
+    },
+    /** 是否已加载全部数据 */
+    noMore() {
+      return this.total > 0 && this.bookList.length >= this.total
     }
   },
   created() {
-    // 初始化加载类目树与图书列表
-    this.store.fetchCategoryTree()
-    this.store.fetchBookList()
+    this.fetchCategories()
+    this.resetAndLoad()
   },
   methods: {
-    /** 拼接图片完整访问地址（复用开发代理前缀） */
-    resolveImageUrl(url) {
-      if (!url) return ''
-      if (url.startsWith('http')) return url
-      return import.meta.env.VITE_APP_BASE_API + url
+    /** 加载类目树 */
+    async fetchCategories() {
+      try {
+        const res = await listBookCategory()
+        // 后端返回平铺列表，前端构建为树
+        this.categoryTree = handleTree(res.data || [])
+      } catch (e) {
+        // 错误提示已由request拦截器统一处理
+      }
     },
-    /** 点击类目节点筛选图书 */
-    handleNodeClick(data) {
-      this.store.changeCategory(data.id)
+    /**
+     * 加载图书列表
+     * @param {boolean} append true-追加（加载更多），false-替换（首页加载）
+     */
+    async fetchBooks(append) {
+      // 类目ID为0（全部）时不传类目参数，搜索时携带当前选中类目
+      const params = {
+        pageNum: this.pageNum,
+        pageSize: PAGE_SIZE,
+        name: this.keyword || undefined,
+        categoryIds: this.currentCategoryId ? String(this.currentCategoryId) : undefined
+      }
+      const res = await listBook(params)
+      const rows = res.rows || []
+      this.bookList = append ? this.bookList.concat(rows) : rows
+      this.total = res.total || 0
     },
-    /** 搜索按钮 */
-    handleSearch() {
-      this.store.search(this.keyword)
+    /** 重置并加载第一页（切换类目/搜索时调用） */
+    async resetAndLoad() {
+      this.pageNum = 1
+      this.bookList = []
+      this.total = 0
+      this.firstLoading = true
+      try {
+        await this.fetchBooks(false)
+      } finally {
+        this.firstLoading = false
+      }
     },
-    /** 翻页 */
-    handlePageChange(page) {
-      this.store.changePage(page, this.store.queryParams.pageSize)
+    /** 滚动触底加载下一页 */
+    async loadMore() {
+      if (this.loadingMore || this.noMore) return
+      this.pageNum += 1
+      this.loadingMore = true
+      try {
+        await this.fetchBooks(true)
+      } finally {
+        this.loadingMore = false
+      }
+    },
+    /** 搜索（按当前选中类目过滤） */
+    handleSearch(keyword) {
+      this.keyword = keyword
+      this.resetAndLoad()
+    },
+    /** 选中类目 */
+    handleCategorySelect(node) {
+      if (node.id === this.currentCategoryId) return
+      this.currentCategoryId = node.id
+      // “全部”根节点不展示类目标签
+      this.currentCategoryName = node.id === 0 ? '' : node.title
+      this.resetAndLoad()
     },
     /** 跳转图书详情 */
-    goDetail(id) {
-      this.$router.push('/book/' + id)
+    goDetail(book) {
+      this.$router.push('/book/' + book.id)
     }
   }
 }
 </script>
 
 <style lang="scss" scoped>
-.book-page {
+.home-page {
+  min-height: 100%;
+}
+
+/* 主体区域：左侧固定类目栏 + 右侧自适应图书列表 */
+.home-body {
+  display: flex;
+  gap: $spacing-lg;
   padding-top: $spacing-lg;
   padding-bottom: $spacing-xxl;
+  align-items: flex-start;
 }
 
-/* 左侧类目面板 */
-.category-panel {
-  position: sticky;
-  top: calc($header-height + $spacing-lg);
-  padding: $spacing-md;
+.home-aside {
+  width: 260px;
+  flex-shrink: 0;
 }
 
-.panel-title {
-  display: flex;
-  align-items: center;
-  gap: $spacing-sm;
-  font-size: $font-size-md;
-  font-weight: $font-weight-bold;
-  color: $color-text-primary;
-  padding: $spacing-sm $spacing-sm $spacing-md;
-  border-bottom: 2px solid $color-primary-bg;
-  margin-bottom: $spacing-base;
-}
-
-.tree-label {
-  font-size: $font-size-sm;
-  padding: $spacing-xs 0;
-}
-
-/* 搜索栏 */
-.search-bar {
-  display: flex;
-  gap: $spacing-md;
-  padding: $spacing-md $spacing-lg;
-  margin-bottom: $spacing-lg;
-}
-
-.search-input {
+.home-content {
   flex: 1;
-}
-
-/* 图书网格 */
-.book-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: $spacing-lg;
-  min-height: 200px;
-}
-
-/* 图书卡片 */
-.book-card {
-  padding: 0;
-  cursor: pointer;
-  overflow: hidden;
-  transition: transform $transition-base, box-shadow $transition-base;
-
-  &:hover {
-    transform: translateY(-4px);
-    box-shadow: $shadow-lg;
-
-    .book-name {
-      color: $color-primary;
-    }
-  }
-}
-
-.book-cover {
-  position: relative;
-  width: 100%;
-  height: 220px;
-  background: $color-bg-muted;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.cover-image {
-  width: 100%;
-  height: 100%;
-}
-
-.cover-placeholder {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: $spacing-sm;
-  color: $color-text-placeholder;
-  font-size: $font-size-xs;
-
-  .el-icon {
-    font-size: 42px;
-  }
-}
-
-/* 库存角标 */
-.stock-badge {
-  position: absolute;
-  top: $spacing-sm;
-  right: $spacing-sm;
-  padding: 2px $spacing-base;
-  border-radius: $radius-pill;
-  font-size: $font-size-xs;
-  font-weight: $font-weight-medium;
-  color: #fff;
-  background: rgba(47, 158, 68, 0.92);
-
-  &.is-empty {
-    background: rgba(100, 116, 139, 0.92);
-  }
-}
-
-.book-info {
-  padding: $spacing-md;
-}
-
-.book-name {
-  font-size: $font-size-md;
-  font-weight: $font-weight-medium;
-  color: $color-text-primary;
-  line-height: 1.4;
-  height: 50px;
-  margin-bottom: $spacing-sm;
-  @include text-ellipsis-multi(2);
-}
-
-.book-meta {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  color: $color-text-secondary;
-  font-size: $font-size-xs;
-}
-
-.meta-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  @include text-ellipsis;
-}
-
-.empty-tip {
-  grid-column: 1 / -1;
-}
-
-/* 分页 */
-.pagination-wrap {
-  display: flex;
-  justify-content: center;
-  margin-top: $spacing-xl;
-}
-
-/* 中等屏幕每行3本 */
-@media (max-width: 1200px) {
-  .book-grid {
-    grid-template-columns: repeat(3, 1fr);
-  }
+  min-width: 0;
 }
 </style>
