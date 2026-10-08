@@ -9,18 +9,11 @@ const routes = [
     redirect: '/book',
     children: [
       {
-        // 图书浏览（首页）
+        // 图书浏览（首页，详情以弹窗形式在当前页展示）
         path: 'book',
         name: 'BookList',
         component: () => import('@/views/book/index.vue'),
         meta: { title: '图书浏览' }
-      },
-      {
-        // 图书详情
-        path: 'book/:id',
-        name: 'BookDetail',
-        component: () => import('@/views/book/detail.vue'),
-        meta: { title: '图书详情' }
       }
     ]
   }

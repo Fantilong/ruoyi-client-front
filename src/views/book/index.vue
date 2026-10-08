@@ -26,10 +26,13 @@
           :loading-more="loadingMore"
           :no-more="noMore"
           @load-more="loadMore"
-          @click-book="goDetail"
+          @click-book="openDetail"
         />
       </section>
     </div>
+
+    <!-- 书籍详情弹窗 -->
+    <book-detail-dialog ref="detailDialog" />
   </div>
 </template>
 
@@ -39,6 +42,7 @@ import { handleTree } from '@/utils/tree'
 import BookSearchArea from '@/components/ssk/BookSearchArea.vue'
 import BookCategoryTree from '@/components/ssk/BookCategoryTree.vue'
 import BookListPanel from '@/components/ssk/BookListPanel.vue'
+import BookDetailDialog from '@/components/ssk/BookDetailDialog.vue'
 
 /** 每页展示9本书（每行3本，共3行） */
 const PAGE_SIZE = 9
@@ -48,7 +52,8 @@ export default {
   components: {
     BookSearchArea,
     BookCategoryTree,
-    BookListPanel
+    BookListPanel,
+    BookDetailDialog
   },
   data() {
     return {
@@ -150,9 +155,9 @@ export default {
       this.currentCategoryName = node.id === 0 ? '' : node.title
       this.resetAndLoad()
     },
-    /** 跳转图书详情 */
-    goDetail(book) {
-      this.$router.push('/book/' + book.id)
+    /** 打开书籍详情弹窗 */
+    openDetail(book) {
+      this.$refs.detailDialog.open(book.id)
     }
   }
 }

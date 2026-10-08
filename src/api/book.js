@@ -10,10 +10,12 @@ export function listBook(query) {
 }
 
 // 查询图书详情
-export function getBook(id) {
+// config支持自定义请求配置（如loading:false关闭全屏loading）
+export function getBook(id, config = {}) {
   return request({
     url: '/client/book/' + id,
-    method: 'get'
+    method: 'get',
+    ...config
   })
 }
 

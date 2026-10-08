@@ -25,7 +25,7 @@
         v-for="book in bookList"
         :key="book.id"
         :book="book"
-        @click="handleCardClick"
+        @click="handleCardClick(book)"
       />
     </div>
 
