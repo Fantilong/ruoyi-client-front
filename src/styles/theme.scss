@@ -1,0 +1,136 @@
+// =============================================================================
+// theme.scss —— 终端统一变量文件（设计令牌 Design Tokens）
+// 说明：本文件仅包含SCSS变量、函数与mixin，由vite.config全局注入，
+//       任何组件中均可直接引用，无需手动import。
+// 风格定位：监狱内部终端 —— 沉稳、严谨、高对比、大触控区域（适合触摸屏一体机）
+// =============================================================================
+
+// ----------------------------- 品牌与主题色 ----------------------------------
+// 主色：深钢蓝，传达稳重、秩序、可信
+$color-primary: #2a5298;
+$color-primary-light: #4a73bd;
+$color-primary-dark: #1d3a72;
+$color-primary-bg: #eaf1fb;
+
+// 辅助色：青灰，用于次级强调
+$color-accent: #177e89;
+
+// 状态色：高饱和度但不过分刺眼，兼顾警示与长时间注视的舒适度
+$color-success: #2f9e44;
+$color-warning: #e8890c;
+$color-danger: #d6336c;
+$color-info: #64748b;
+
+// ----------------------------- 中性色 / 层级背景 -----------------------------
+$color-bg-page: #eef2f7;      // 页面底色（冷调浅灰）
+$color-bg-container: #ffffff; // 卡片/容器底色
+$color-bg-muted: #f5f7fa;     // 次级面板底色
+$color-bg-hover: #f0f5ff;     // 悬浮底色
+
+// 边框
+$color-border: #d9e1ec;
+$color-border-light: #e7edf5;
+$color-border-dark: #b8c5d6;
+
+// 文字（四级层次）
+$color-text-primary: #1f2d3d;
+$color-text-regular: #46586e;
+$color-text-secondary: #74849a;
+$color-text-placeholder: #a4b0c0;
+$color-text-inverse: #ffffff;
+
+// ----------------------------- 字体 ------------------------------------------
+$font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei',
+  'Helvetica Neue', Helvetica, Arial, sans-serif;
+
+// 终端为触摸大屏，基础字号略大于普通后台
+$font-size-xs: 13px;
+$font-size-sm: 15px;
+$font-size-base: 16px;
+$font-size-md: 18px;
+$font-size-lg: 22px;
+$font-size-xl: 28px;
+$font-size-title: 32px;
+
+$font-weight-regular: 400;
+$font-weight-medium: 500;
+$font-weight-bold: 700;
+
+$line-height-base: 1.6;
+
+// ----------------------------- 圆角 ------------------------------------------
+$radius-sm: 6px;
+$radius-base: 10px;
+$radius-lg: 14px;
+$radius-pill: 999px;
+
+// ----------------------------- 间距（4的倍数栅格） ----------------------------
+$spacing-xs: 4px;
+$spacing-sm: 8px;
+$spacing-base: 12px;
+$spacing-md: 16px;
+$spacing-lg: 24px;
+$spacing-xl: 32px;
+$spacing-xxl: 48px;
+
+// ----------------------------- 阴影 ------------------------------------------
+$shadow-sm: 0 1px 3px rgba(31, 58, 114, 0.08);
+$shadow-base: 0 4px 12px rgba(31, 58, 114, 0.1);
+$shadow-lg: 0 10px 28px rgba(31, 58, 114, 0.16);
+
+// ----------------------------- 尺寸（终端触控适配） --------------------------
+$touch-size: 48px;        // 最小可触控尺寸
+$header-height: 68px;
+$sidebar-width: 240px;
+$content-max-width: 1400px;
+
+// ----------------------------- 层级 z-index ----------------------------------
+$z-normal: 1;
+$z-sticky: 100;
+$z-header: 1000;
+$z-dropdown: 2000;
+$z-modal: 3000;
+$z-message: 4000;
+
+// ----------------------------- 动效 ------------------------------------------
+$transition-fast: 0.15s ease;
+$transition-base: 0.25s ease;
+
+// =============================================================================
+// Mixins
+// =============================================================================
+
+// 单行文本溢出省略
+@mixin text-ellipsis {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+// 多行文本溢出省略（默认2行）
+@mixin text-ellipsis-multi($lines: 2) {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: $lines;
+}
+
+// 卡片容器
+@mixin card {
+  background: $color-bg-container;
+  border-radius: $radius-lg;
+  box-shadow: $shadow-sm;
+}
+
+// 触控区域不小于48px（终端触摸屏友好）
+@mixin touch-target {
+  min-width: $touch-size;
+  min-height: $touch-size;
+}
+
+// flex 居中
+@mixin flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
